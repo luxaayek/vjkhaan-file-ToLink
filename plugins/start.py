@@ -9,7 +9,6 @@ from TechVJ.util.file_properties import get_name, get_media_file_size
 from TechVJ.util.human_readable import humanbytes
 from database.users_chats_db import db
 from utils import temp, get_shortlink
-import aiohttp # <--- Kani ku dar haddii uusan horey u jirin
 
 
 @Client.on_message(filters.command("start") & filters.incoming)
@@ -31,8 +30,10 @@ async def start(client, message):
     return
 
 
+
 @Client.on_message(filters.private & (filters.document | filters.video))
-async def stream_start(client, message): # <--- Halkan waa inuu ku yaal "async def"
+async def stream_start(client, message):
+
     file = getattr(message, message.media.value)
     filename = file.file_name
     fileid = file.file_id
@@ -63,25 +64,7 @@ async def stream_start(client, message): # <--- Halkan waa inuu ku yaal "async d
     watch_link = f"{URL}watch/{msg_id}/{safe_name}?hash={secure_hash}"
 
     # DOWNLOAD → NOW HLS (.m3u8)
-    hls_base_path = f"{URL}hls/{msg_id}/{secure_hash}" 
-    download_link = f"{hls_base_path}/index.m3u8" # <-- Kani waa linkiga HLS playlist-ka
-
-    # --- BILOWGA WAXYAABAHA CUSUB EE HAGAAGINAYA ---
-    # Waxaan isku dayeynaa inaan bilowno HLS generation-ka isla markaaba
-    try:
-        await client.send_message(LOG_CHANNEL, f"Starting HLS generation for {msg_id}/{secure_hash}...")
-        
-        async with aiohttp.ClientSession() as session:
-            # Kani wuxuu u dirayaa codsi serverkaaga si uu u bilaabo transcoding-ka
-            # Waxaan u malaynaynaa in aad ku darto route-kan cusub route.py
-            await session.get(f"{URL}generate/{msg_id}/{secure_hash}") 
-
-        await client.send_message(LOG_CHANNEL, f"HLS generation initiated for {msg_id}/{secure_hash}.")
-        
-    except Exception as e:
-        await client.send_message(LOG_CHANNEL, f"Failed to initiate HLS generation for {msg_id}/{secure_hash}: {e}")
-    # --- DHAMMAADKA WAXYAABAHA CUSUB ---
-
+    download_link = f"{URL}hls/{msg_id}/{secure_hash}/index.m3u8"
 
     # Apply shorteners if enabled
     if SHORTLINK:
@@ -90,7 +73,7 @@ async def stream_start(client, message): # <--- Halkan waa inuu ku yaal "async d
 
     # Send notification in LOG CHANNEL
     await log_msg.reply_text(
-        text=f"•• ɢᴇɴᴇᴇʀᴀᴛᴇᴅ ꜰᴏʀ : {username}\n\n•• ᖴᎥᒪᗴ : {get_name(log_msg)}",
+        text=f"•• ɢᴇɴᴇʀᴀᴛᴇᴅ ꜰᴏʀ : {username}\n\n•• ᖴᎥᒪᗴ : {get_name(log_msg)}",
         quote=True,
         disable_web_page_preview=True,
         reply_markup=InlineKeyboardMarkup(
