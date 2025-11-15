@@ -5,7 +5,7 @@ from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from info import URL, LOG_CHANNEL, SHORTLINK
 from urllib.parse import quote_plus
-from TechVJ.util.file_properties import get_name, get_hash, get_media_file_size
+from TechVJ.util.file_properties import get_name, get_media_file_size
 from TechVJ.util.human_readable import humanbytes
 from database.users_chats_db import db
 from utils import temp, get_shortlink
@@ -30,6 +30,7 @@ async def start(client, message):
     return
 
 
+
 @Client.on_message(filters.private & (filters.document | filters.video))
 async def stream_start(client, message):
 
@@ -38,7 +39,7 @@ async def stream_start(client, message):
     fileid = file.file_id
     username = message.from_user.mention
 
-    # Save file into log channel
+    # Save the media to LOG CHANNEL
     log_msg = await client.send_cached_media(
         chat_id=LOG_CHANNEL,
         file_id=fileid,
@@ -46,22 +47,33 @@ async def stream_start(client, message):
 
     safe_name = quote_plus(get_name(log_msg))
     msg_id = log_msg.id
-    secure_hash = get_hash(log_msg)
 
-    # WATCH → keep same (do NOT change)
+    # -----------------------------------------------------------
+    #  FIXED HASH — Must match route.py (file_unique_id[:6])
+    # -----------------------------------------------------------
+    try:
+        secure_hash = log_msg.document.file_unique_id[:6]
+    except:
+        secure_hash = log_msg.video.file_unique_id[:6]
+
+    # -----------------------------------------------------------
+    # LINKS
+    # -----------------------------------------------------------
+
+    # WATCH → KEEP ORIGINAL TEMPLATE
     watch_link = f"{URL}watch/{msg_id}/{safe_name}?hash={secure_hash}"
 
-    # DOWNLOAD → change to HLS
+    # DOWNLOAD → NOW HLS (.m3u8)
     download_link = f"{URL}hls/{msg_id}/{secure_hash}/index.m3u8"
 
-    # Apply shortlink if enabled
+    # Apply shorteners if enabled
     if SHORTLINK:
         watch_link = await get_shortlink(watch_link)
         download_link = await get_shortlink(download_link)
 
-    # Send log message
+    # Send notification in LOG CHANNEL
     await log_msg.reply_text(
-        text=f"•• Generated link for user {username}\n\n•• File : {get_name(log_msg)}",
+        text=f"•• ɢᴇɴᴇʀᴀᴛᴇᴅ ꜰᴏʀ : {username}\n\n•• ᖴᎥᒪᗴ : {get_name(log_msg)}",
         quote=True,
         disable_web_page_preview=True,
         reply_markup=InlineKeyboardMarkup(
@@ -74,8 +86,8 @@ async def stream_start(client, message):
         )
     )
 
-    # Send final message to user
-    reply_markup = InlineKeyboardMarkup(
+    # Create reply for user
+    buttons = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("🖥 WATCH", url=watch_link),
@@ -89,12 +101,12 @@ async def stream_start(client, message):
         f"<b>📂 File :</b> <i>{get_name(log_msg)}</i>\n\n"
         f"<b>📥 DOWNLOAD (HLS):</b> <i>{download_link}</i>\n\n"
         f"<b>🖥 WATCH :</b> <i>{watch_link}</i>\n\n"
-        "<b>🔒 Note: Links never expire until I delete.</b>"
+        "<b>🔒 Links remain forever until deleted.</b>"
     )
 
     await message.reply_text(
         text=msg_text,
         quote=True,
         disable_web_page_preview=True,
-        reply_markup=reply_markup
+        reply_markup=buttons
     )
