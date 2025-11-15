@@ -1,5 +1,5 @@
 # Don't Remove Credit @VJ_Botz
-# HLS Streaming Added by ChatGPT
+# HLS Streaming Fixed Version (ChatGPT)
 
 import re, logging, os, asyncio, subprocess
 from aiohttp import web
@@ -18,12 +18,17 @@ os.makedirs(HLS_ROOT, exist_ok=True)
 async def root_route_handler(request):
     return web.json_response("HLS StreamBot Running")
 
+
+# ===========================
+# WATCH PAGE (WORKING)
+# ===========================
+
 @routes.get("/watch/{path:.+}", allow_head=True)
 async def watch_handler(request: web.Request):
     try:
         path = request.match_info["path"]
-        match = re.search(r"^([A-Za-z0-9_-]{6})(\d+)$", path)
 
+        match = re.search(r"^([A-Za-z0-9_-]{6})(\d+)$", path)
         if match:
             secure_hash = match.group(1)
             msg_id = int(match.group(2))
@@ -40,7 +45,11 @@ async def watch_handler(request: web.Request):
         logging.error(e)
         raise web.HTTPInternalServerError(text=str(e))
 
-# ------------ FIXED ROUTE ------------ #
+
+# ===========================
+# HLS FILE SERVE (FIXED)
+# ===========================
+
 @routes.get("/hls/{path:.+}", allow_head=True)
 async def hls_serve(request):
     try:
@@ -56,26 +65,32 @@ async def hls_serve(request):
         logging.error(e)
         raise web.HTTPInternalServerError(text=str(e))
 
-# ------------ HLS GENERATOR ------------ #
+
+# ===========================
+# HLS GENERATOR (MAJOR FIX DONE)
+# ===========================
+
 @routes.get("/{path:.+}", allow_head=True)
 async def hls_generator(request: web.Request):
     try:
         raw_path = request.match_info["path"]
-        match = re.search(r"^([A-Za-z0-9_-]{6})(\d+)$", raw_path)
 
+        match = re.search(r"^([A-Za-z0-9_-]{6})(\d+)$", raw_path)
         if match:
             secure_hash = match.group(1)
             msg_id = int(match.group(2))
         else:
-            msg_id = int(re.search(r"(\\d+)", raw_path).group(1))
+            msg_id = int(re.search(r"(\d+)", raw_path).group(1))
             secure_hash = request.rel_url.query.get("hash")
 
+        # choose fastest client
         index = min(work_loads, key=work_loads.get)
         client = multi_clients[index]
 
         streamer = ByteStreamer(client)
         file_id = await streamer.get_file_properties(msg_id)
 
+        # HASH CHECK
         if file_id.unique_id[:6] != secure_hash:
             raise InvalidHash
 
@@ -84,16 +99,19 @@ async def hls_generator(request: web.Request):
 
         index_m3u8 = f"{folder}/index.m3u8"
 
+        # Already generated?
         if os.path.exists(index_m3u8):
             return web.Response(
                 text=f"/hls/{msg_id}/{secure_hash}/index.m3u8",
                 content_type="text/plain"
             )
 
+        # RUN FFMPEG
         async def run_ffmpeg():
             process = subprocess.Popen(
                 [
-                    "ffmpeg", "-i", "pipe:0",
+                    "ffmpeg",
+                    "-i", "pipe:0",
                     "-c", "copy",
                     "-hls_time", "4",
                     "-hls_list_size", "0",
