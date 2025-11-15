@@ -35,11 +35,10 @@ async def start(client, message):
 async def stream_start(client, message):
 
     file = getattr(message, message.media.value)
-    filename = file.file_name
     fileid = file.file_id
     username = message.from_user.mention
 
-    # Save the media to LOG CHANNEL
+    # Save media to LOG CHANNEL
     log_msg = await client.send_cached_media(
         chat_id=LOG_CHANNEL,
         file_id=fileid,
@@ -48,30 +47,27 @@ async def stream_start(client, message):
     safe_name = quote_plus(get_name(log_msg))
     msg_id = log_msg.id
 
-    # -----------------------------------------------------------
-    #  FIXED HASH — Must match route.py (file_unique_id[:6])
-    # -----------------------------------------------------------
+    # HASH — MUST MATCH route.py
     try:
         secure_hash = log_msg.document.file_unique_id[:6]
     except:
         secure_hash = log_msg.video.file_unique_id[:6]
 
-    # -----------------------------------------------------------
-    # LINKS
-    # -----------------------------------------------------------
+    # -------------------------------------------------------
+    # FIXED DOWNLOAD LINK (TRIGGER HLS GENERATOR)
+    # -------------------------------------------------------
 
-    # WATCH → KEEP ORIGINAL TEMPLATE
+    download_link = f"{URL}{msg_id}/{secure_hash}"
+
+    # WATCH (unchanged)
     watch_link = f"{URL}watch/{msg_id}/{safe_name}?hash={secure_hash}"
 
-    # DOWNLOAD → NOW HLS (.m3u8)
-    download_link = f"{URL}hls/{msg_id}/{secure_hash}/index.m3u8"
-
-    # Apply shorteners if enabled
+    # Shorten links if enabled
     if SHORTLINK:
         watch_link = await get_shortlink(watch_link)
         download_link = await get_shortlink(download_link)
 
-    # Send notification in LOG CHANNEL
+    # Notify LOG channel
     await log_msg.reply_text(
         text=f"•• ɢᴇɴᴇʀᴀᴛᴇᴅ ꜰᴏʀ : {username}\n\n•• ᖴᎥᒪᗴ : {get_name(log_msg)}",
         quote=True,
@@ -86,7 +82,7 @@ async def stream_start(client, message):
         )
     )
 
-    # Create reply for user
+    # Reply to user
     buttons = InlineKeyboardMarkup(
         [
             [
